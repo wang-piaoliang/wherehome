@@ -1,0 +1,19 @@
+# 依赖与构建产物
+/node_modules
+/dist/
+/.wrangler/
+/coverage
+
+# ── 家里的实际数据，绝对不要提交 ──────────────────────────
+# 这个仓库是公开的。物品小图是家里各个柜子内部的实拍，
+# items.json 是「家里有什么、放在哪」的完整清单。
+# 两者都只通过 `wrangler pages deploy` 直接上传到受 Access 保护的
+# Cloudflare Pages，不经过 GitHub。
+/public/items/
+/public/items.json
+
+# 杂项
+.DS_Store
+*.pem
+.env*
+npm-debug.log*

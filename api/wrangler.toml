@@ -1,0 +1,10 @@
+# 「在哪儿」云同步 Worker 的部署配置。部署步骤见本目录 README.md。
+# database_id 由 `wrangler d1 create wherehome` 生成后填进来。
+name = "wherehome-sync"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wherehome"
+database_id = ""

@@ -1,0 +1,12 @@
+{
+  "name": "wherehome-pwa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "test": "node --test tests/app.test.mjs",
+    "publish:pages": "bash scripts/publish-pages.sh",
+    "serve": "python3 -m http.server 8080 --directory public"
+  }
+}
