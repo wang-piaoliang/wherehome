@@ -1,8 +1,7 @@
-const CACHE_NAME = "wherehome-pwa-v2";
+const CACHE_NAME = "wherehome-pwa-v3";
 const APP_SHELL = [
   "./",
   "./wherehome.html",
-  "./items.json",
   "./manifest.webmanifest",
   "./offline.html",
   "./apple-touch-icon.png",
@@ -29,8 +28,11 @@ self.addEventListener("activate", event => {
   );
 });
 
-// 应用外壳和 items.json 走「网络优先」，保证改动能生效；
-// 物品小图有 1000+ 张、内容永不变，走「缓存优先」，第一次看过就离线可用。
+// 外壳走「网络优先」，保证改动能生效。
+// data.enc（6.5MB，每次发布才变）和物品小图走「缓存优先」，看过一次就离线可用。
+// 注意：APP_SHELL 里只能放生产环境一定存在的文件——cache.addAll 只要有一个 404
+// 就整体 reject，Service Worker 会直接装不上。items.json 只在本地开发时存在，
+// 绝不能放进来。
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);

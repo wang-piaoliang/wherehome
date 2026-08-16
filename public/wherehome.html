@@ -238,6 +238,14 @@ nav.tabs button[aria-pressed="true"]{color:var(--accent);font-weight:600}
       </div>
     </div>
 
+    <div class="panel" id="lockPanel" hidden>
+      <h3>本地数据</h3>
+      <p>物品库已在这台设备上解密并缓存，所以打开不用再输口令。换了设备、或者手机要给别人用，可以清掉。</p>
+      <div class="actions">
+        <button class="btn danger" id="lockBtn">清除并锁定</button>
+      </div>
+    </div>
+
     <div class="panel">
       <h3>云同步</h3>
       <p id="syncState">未配置。填上 Worker 地址和密钥后，可以在手机和电脑之间同步你的修改。</p>
@@ -676,6 +684,162 @@ function applyTheme(){
   else document.documentElement.removeAttribute("data-theme");
 }
 
+/* ---------- 加密数据包 ----------
+   data.enc 放在公开仓库里，本身是密文。第一次打开要输口令，用 PBKDF2 派生
+   密钥、AES-GCM 解密，之后把解出来的明文存进 IndexedDB，下次直接用，不用再输。
+   图片不是 base64，是按偏移从明文里切出来的 Blob——交给浏览器管理，
+   不占 JS 内存。 */
+const IDB_NAME = "wherehome", IDB_STORE = "vault", IDB_KEY = "plain";
+
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbGet(key){
+  try{
+    const db = await idb();
+    return await new Promise((res, rej) => {
+      const t = db.transaction(IDB_STORE, "readonly").objectStore(IDB_STORE).get(key);
+      t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error);
+    });
+  }catch(e){ return undefined; }
+}
+async function idbSet(key, val){
+  try{
+    const db = await idb();
+    await new Promise((res, rej) => {
+      const t = db.transaction(IDB_STORE, "readwrite").objectStore(IDB_STORE).put(val, key);
+      t.onsuccess = () => res(); t.onerror = () => rej(t.error);
+    });
+  }catch(e){ /* 存不下就下次重新解密，不影响使用 */ }
+}
+async function idbDel(key){
+  try{
+    const db = await idb();
+    await new Promise(res => {
+      const t = db.transaction(IDB_STORE, "readwrite").objectStore(IDB_STORE).delete(key);
+      t.onsuccess = () => res(); t.onerror = () => res();
+    });
+  }catch(e){}
+}
+
+async function hasEncrypted(){
+  if(state.encChecked !== undefined) return state.encChecked;
+  try{
+    const r = await fetch("./data.enc", {method:"HEAD"});
+    state.encChecked = r.ok;
+  }catch(e){ state.encChecked = false; }
+  return state.encChecked;
+}
+
+// 把解密后的明文切成 {items, blobUrls}
+function unpackPlain(buf){
+  const view = new DataView(buf);
+  const metaLen = view.getUint32(0, false);
+  const metaJSON = new TextDecoder().decode(new Uint8Array(buf, 4, metaLen));
+  const meta = JSON.parse(metaJSON);
+  const base = 4 + metaLen;
+  for(const it of meta.items){
+    if(it.len > 0){
+      const blob = new Blob([new Uint8Array(buf, base + it.off, it.len)], {type:"image/jpeg"});
+      it.img = URL.createObjectURL(blob);
+    } else {
+      it.img = "";
+    }
+  }
+  return meta;
+}
+
+async function decryptBundle(buf, password, onProgress){
+  const u8 = new Uint8Array(buf);
+  const magic = new TextDecoder().decode(u8.slice(0, 4));
+  if(magic !== "WHE2") throw new Error("数据包格式不对");
+  const iterations = new DataView(buf).getUint32(4, false);
+  const salt = u8.slice(8, 24);
+  const iv = u8.slice(24, 36);
+  const body = u8.slice(36);
+
+  onProgress && onProgress("正在校验口令…");
+  const baseKey = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]
+  );
+  const key = await crypto.subtle.deriveKey(
+    {name:"PBKDF2", salt, iterations, hash:"SHA-256"},
+    baseKey, {name:"AES-GCM", length:256}, false, ["decrypt"]
+  );
+  onProgress && onProgress("正在解密…");
+  return await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, body);
+}
+
+function unlockScreen(){
+  document.body.innerHTML =
+    '<div class="unlock"><form class="ucard" id="uform">' +
+      '<h1>在哪儿</h1><p class="usub">家里的东西放在哪儿</p>' +
+      '<p class="uerr" id="uerr" hidden></p>' +
+      '<input id="upw" type="password" placeholder="口令" autocomplete="current-password" autofocus required>' +
+      '<button type="submit" id="ubtn">解锁</button>' +
+      '<p class="unote">数据在这台设备上解密，解开后会记住，下次不用再输。</p>' +
+    '</form></div>';
+  const st = document.createElement("style");
+  st.textContent =
+    '.unlock{min-height:100vh;display:grid;place-items:center;padding:24px}' +
+    '.ucard{width:100%;max-width:330px;background:var(--surface);border:1px solid var(--line);' +
+      'border-radius:16px;padding:28px 24px;box-shadow:var(--shadow)}' +
+    '.ucard h1{font-size:21px;margin:0 0 4px;font-weight:650}' +
+    '.usub{margin:0 0 20px;font-size:13.5px;color:var(--muted)}' +
+    '.uerr{margin:0 0 14px;font-size:13px;color:var(--danger);background:var(--danger-soft);' +
+      'padding:8px 11px;border-radius:8px}' +
+    '.ucard input{width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--line);' +
+      'border-radius:10px;background:var(--bg);color:var(--ink);margin-bottom:12px}' +
+    '.ucard button{width:100%;padding:12px;font-size:15px;font-weight:600;border:0;border-radius:10px;' +
+      'background:var(--accent);color:var(--on-accent)}' +
+    '.ucard button[disabled]{opacity:.6}' +
+    '.unote{margin:14px 0 0;font-size:11.5px;color:var(--faint);line-height:1.5}';
+  document.head.appendChild(st);
+  return new Promise(resolve => {
+    const form = document.getElementById("uform");
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const btn = document.getElementById("ubtn");
+      const err = document.getElementById("uerr");
+      const pw = document.getElementById("upw").value;
+      if(!pw) return;
+      btn.disabled = true; err.hidden = true;
+      const say = m => { btn.textContent = m; };
+      try{
+        say("正在下载…");
+        const r = await fetch("./data.enc");
+        if(!r.ok) throw new Error("下载失败 HTTP " + r.status);
+        const buf = await r.arrayBuffer();
+        const plain = await decryptBundle(buf, pw, say);
+        await idbSet(IDB_KEY, plain);
+        resolve(plain);
+      }catch(ex){
+        // AES-GCM 校验失败基本就等于口令不对
+        err.textContent = /operation-specific|OperationError|decrypt/i.test(String(ex && ex.name) + String(ex && ex.message))
+          ? "口令不对" : ("出错了：" + (ex && ex.message ? ex.message : ex));
+        err.hidden = false;
+        btn.disabled = false; btn.textContent = "解锁";
+        document.getElementById("upw").select();
+      }
+    });
+  });
+}
+
+async function loadEncrypted(){
+  let plain = await idbGet(IDB_KEY);
+  if(!plain){
+    plain = await unlockScreen();
+    location.reload();   // 解锁后重载，走正常启动路径
+    return null;
+  }
+  return unpackPlain(plain);
+}
+
 /* ---------- 启动 ---------- */
 async function boot(){
   state.edits = loadJSON(LS_EDITS, {});
@@ -687,12 +851,17 @@ async function boot(){
   $("syncUrl").value = state.prefs.syncUrl || "";
   $("syncToken").value = state.prefs.syncToken || "";
 
-  // 单文件版（scripts/build-standalone.py 产出）会把数据内嵌成 window.__ITEMS__，
-  // 这样一个 html 就能独立打开，不需要同目录的 items.json 和 items/。
+  // 数据来源有三种，按优先级：
+  //   1. window.__ITEMS__  —— 单文件版（scripts/build-standalone.py 产出）内嵌
+  //   2. data.enc          —— 加密包（scripts/build-encrypted.mjs 产出），需要口令
+  //   3. items.json        —— 明文，本地开发用
   try{
     let j;
     if(window.__ITEMS__){
       j = window.__ITEMS__;
+    } else if(await hasEncrypted()){
+      j = await loadEncrypted();
+      if(!j) return;               // 用户还没解锁，解锁界面已经接管
     } else {
       const r = await fetch("./items.json", {cache:"no-cache"});
       j = await r.json();
@@ -701,9 +870,11 @@ async function boot(){
     for(const it of state.base) state.byId.set(it.id, it);
   }catch(e){
     $("hstat").textContent = "数据没载入成功";
-    toast("物品数据载入失败");
+    toast("物品数据载入失败：" + (e && e.message ? e.message : e));
     return;
   }
+
+  if(await hasEncrypted()) $("lockPanel").hidden = false;
 
   const on = state.base.filter(i => i.on).length;
   $("hstat").textContent = on + " 件 · " + new Set(state.base.filter(i=>i.on).map(i=>i.room)).size + " 个房间";
@@ -750,6 +921,11 @@ $("exportBtn").addEventListener("click", () => {
 $("resetBtn").addEventListener("click", () => {
   if(!confirm("清空这台设备上的全部修改？原始物品库不受影响。")) return;
   state.edits = {}; saveEdits(); buildChips(); render(); renderStats(); toast("已清空");
+});
+$("lockBtn").addEventListener("click", async () => {
+  if(!confirm("清除这台设备上缓存的物品库？下次打开要重新输口令。你的修改不受影响。")) return;
+  await idbDel(IDB_KEY);
+  location.reload();
 });
 
 // 单文件版没有同目录的 sw.js，注册会 404，跳过即可。

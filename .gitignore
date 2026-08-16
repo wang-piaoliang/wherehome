@@ -11,7 +11,11 @@
 # 两者都只通过 `wrangler pages deploy` 直接上传到受 Access 保护的
 # Cloudflare Pages，不经过 GitHub。
 /public/items/
+/public/items_sm/
 /public/items.json
+
+# public/data.enc 是加密后的物品库，可以进公开仓库——它就是为此而生的。
+# 明文的 items/、items_sm/、items.json 永远不行。
 
 # 杂项
 .DS_Store

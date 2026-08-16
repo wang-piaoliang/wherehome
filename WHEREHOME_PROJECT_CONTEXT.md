@@ -57,63 +57,60 @@ GitHub Pages，可选的云同步是独立的 Cloudflare Worker + D1。
 
 ## 部署
 
-代码和数据走两条完全分开的路，这是本项目最重要的架构约束：
+App 走 GitHub Pages（和 NutriFlow、prettier 同一套），数据加密后一起放公开仓库。
 
-| | 放哪 | 谁能看 |
+| | 放哪 | 别人拿到能看懂吗 |
 |---|---|---|
-| 代码、脚本、文档 | GitHub **public** 仓库 | 所有人 |
-| `public/items/`、`public/items.json` | 只随 `gate/` Worker 上传到 Cloudflare | 只有知道密码的人 |
+| 代码、图标、文档 | GitHub public 仓库 | 能，本来就该公开 |
+| `public/data.enc` | GitHub public 仓库 | **不能**，AES-256-GCM 密文 |
+| `public/items/`、`items_sm/`、`items.json` | 只在本地，`.gitignore` 排除 | 不上传 |
 
-物品小图是家里各个柜子内部的实拍，items.json 是「家里有什么、放在哪」的完整清单，
-**两者都在 `.gitignore` 里，绝不允许进入 git 历史**。改 `.gitignore` 前请三思：
-一旦提交过，公开仓库的历史里就洗不掉了。
+### 为什么是这个方案
 
-### 访问控制：gate/ Worker
+- Cloudflare Pages + Access：Access 的 Self-hosted 应用要从账号下的域名选主机名，
+  该账号没有域名，`*.pages.dev` 不属于用户，选不了。
+- Cloudflare Worker（`gate/`，已部署但停用）：`*.workers.dev` 在国内被 DNS 污染，
+  解析到无关 IP，不挂代理打不开。GitHub Pages 则国内直连正常。
+- 所以最终：**用可达的 GitHub Pages 托管，用加密解决隐私**。
 
-`gate/` 是一个把整个站点挡在密码后面的 Worker：
+### 加密数据包
 
-- 静态资源（App、items.json、1054 张小图）用 **Workers Static Assets** 托管，
-  `wrangler.toml` 里 `run_worker_first = true`，保证每个请求都先过 Worker。
-- 没有有效 cookie 时，**任何路径**都只返回登录页（不暴露站点结构）。
-- 密码正确后种一个 HMAC 签名的 cookie，30 天有效，`HttpOnly; Secure; SameSite=Lax`。
-- 密码比对用定长比较；密码错误时延迟 900ms，降低暴力尝试速率。
-- 全站响应带 `X-Robots-Tag: noindex` 和 `Referrer-Policy: no-referrer`。
+`scripts/build-encrypted.mjs` 把 items.json + 1054 张 300px 小图打成一个二进制容器再加密：
 
-两个 secret（不在仓库里）：
-
-```bash
-cd gate
-printf 'your-password' | wrangler secret put APP_PASSWORD --name wherehome
-python3 -c "import secrets;print(secrets.token_urlsafe(48))" | tr -d '\n' | wrangler secret put COOKIE_SECRET --name wherehome
-wrangler deploy
+```
+"WHE2" | iterations(4) | salt(16) | iv(12) | AES-256-GCM 密文
+明文： metaLen(4) | metaJSON | 所有图片的原始 JPEG 字节
 ```
 
-**为什么不用 Cloudflare Access**：Access 的 Self-hosted 应用要求从账号下的域名里选主机名，
-而这个账号没有任何域名，`*.pages.dev` 不属于用户，选不了。等哪天有了自己的域名，
-可以换成 Access 的邮箱验证码登录，那样每人一个身份，比共享密码更好。
+- 图片**不做 base64**（省 34% 体积），客户端解密后按 `off/len` 切成 Blob，
+  由浏览器管理内存，不把十几 MB 字符串堆在 JS 堆上。
+- PBKDF2-SHA256 600,000 轮（OWASP 建议值）+ AES-256-GCM。
+- 客户端解密一次后把明文存进 IndexedDB，之后打开不用再输口令；
+  设置页有「清除并锁定」。
 
-### 日常更新
+⚠️ **密文是公开的，别人可以下载后离线暴力破解，所以口令必须够长。**
+脚本强制 12 位以上。换口令：
+
+```bash
+node scripts/build-encrypted.mjs '新的长口令'
+git add public/data.enc && git commit -m "换口令" && npm run publish:pages
+```
+
+换口令后，已解锁的设备因为缓存了明文不受影响；新设备要用新口令。
+
+### 发布
 
 ```bash
 npm test
-git push github main       # 只推代码
-cd gate && wrangler deploy # 推代码 + 数据（1067 个文件，走代理时可能要重试）
+npm run publish:pages     # 校验 → 推 main → 把 public/ 发到 gh-pages → 触发重建
 ```
 
-`scripts/publish-pages.sh` 是从 NutriFlow 继承来的 GitHub Pages 发布脚本，
-**本项目不要用它** —— GitHub Pages 站点永远是公开的，会把家里的数据暴露出去。保留仅作参考。
+站点：`https://wang-piaoliang.github.io/wherehome/`
 
-### 云同步（可选，两人各自的修改互通时才需要）
+### 云同步（可选，两人的修改互通）
 
-`api/` 是独立的 Cloudflare Worker + D1，只同步修改补丁（`wherehome_edits_v1`，几十 KB），
-与 16MB 的图无关，也不需要 R2。
-
-```bash
-cd api
-wrangler d1 create wherehome     # 把返回的 database_id 填进 wrangler.toml
-wrangler secret put SYNC_TOKEN
-wrangler deploy
-```
+`api/` 是独立 Worker + D1，只同步修改补丁（几十 KB）。注意 `*.workers.dev`
+国内需要代理，所以这个功能在国内网络下不可用——两人互通目前只能靠手动导出/导入。
 
 ## 已知问题 / 待办
 

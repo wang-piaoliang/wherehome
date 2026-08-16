@@ -48,18 +48,22 @@ items.json 里每条：
 
 **代码和数据分两条路，永远不要合并。**
 
-- `git push github main` —— 只推代码。`public/items/` 和 `public/items.json` 在 `.gitignore` 里，
-  它们是家里柜子内部的实拍和完整物品清单，仓库是公开的，**绝不能提交**。
-- `cd gate && wrangler deploy` —— 推代码 + 数据到受密码保护的 Worker。这是数据唯一的出口。
-- **不要用 `scripts/publish-pages.sh`**（继承自 NutriFlow）。GitHub Pages 站点永远公开，
-  用它等于把家里的数据发到全网。该脚本保留仅作参考。
+- `npm run publish:pages` —— 正常发布路径，和 NutriFlow 一样发到 GitHub Pages。
+- **只有 `public/data.enc`（密文）可以进仓库。** 明文的 `public/items/`、`items_sm/`、
+  `items.json` 是家里柜子内部的实拍和完整物品清单，在 `.gitignore` 里，**绝不能提交**。
+  改 `.gitignore` 前三思：公开仓库的历史洗不掉。
+- 数据变了要重新打包：`node scripts/build-encrypted.mjs '口令'`，然后提交 `data.enc`。
+- `gate/` 是早期的 Cloudflare Worker 方案，因 `*.workers.dev` 国内被墙而停用，保留备查。
 - 改完之后更新 `WHEREHOME_PROJECT_CONTEXT.md`，和实现一起提交。
 
 ## 产品与质量约束
 
 - iPhone 优先。任何移动宽度下都不能出现横向滚动。
 - 底部四个 tab 的顺序固定：`搜索`、`房间`、`新增`、`设置`，`搜索` 是默认视图。
-- 物品小图有 1000+ 张，`sw.js` 里必须保持「外壳和 items.json 走网络优先、小图走缓存优先」的策略；改了 App 外壳要同时升 `CACHE_NAME` 的版本号，并更新对应测试断言。
+- 改了 App 外壳要升 `sw.js` 里 `CACHE_NAME` 的版本号。
+- **`APP_SHELL` 里只能放生产环境一定存在的文件**：`cache.addAll` 只要有一个 404 就整体
+  reject，Service Worker 会直接装不上。`items.json` 只在本地开发存在、`data.enc` 有 6.5MB，
+  两者都不能放进去（已有回归测试守着）。
 - 搜索的检索字段是 `name / cat / room / where / qty / note`。**不要加 `scene`。**
 - 深浅色两套都要能看。`prefers-color-scheme` 和 `data-theme` 都要生效。
 - 用户的改动是他们的劳动成果，任何改动都不能让 `wherehome_edits_v1` 失效或被清空。改了它的结构必须做迁移。

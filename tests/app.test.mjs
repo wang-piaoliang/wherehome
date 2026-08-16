@@ -67,10 +67,30 @@ test("可搜索物品的房间与分类都在允许范围内", async () => {
   }
 });
 
+test("加密数据包存在且格式正确", async () => {
+  const buf = await readFile(url("../public/data.enc"));
+  assert.ok(buf.length > 1_000_000, "data.enc 太小，可能没打包成功");
+  assert.equal(buf.subarray(0, 4).toString("ascii"), "WHE2", "magic 头不对");
+  const iterations = buf.readUInt32BE(4);
+  assert.ok(iterations >= 600000, `PBKDF2 轮数太低：${iterations}`);
+  assert.ok(buf.length > 36 + 16, "密文体积不足");
+});
+
+test("仓库里不能出现明文物品数据", async () => {
+  const gi = await readFile(url("../.gitignore"), "utf8");
+  for (const p of ["/public/items/", "/public/items_sm/", "/public/items.json"]) {
+    assert.ok(gi.includes(p), `.gitignore 必须排除 ${p}`);
+  }
+});
+
 test("service worker 缓存了应用外壳与数据", async () => {
   const sw = await readFile(url("../public/sw.js"), "utf8");
   assert.match(sw, /CACHE_NAME\s*=\s*"wherehome-pwa-v\d+"/, "缓存名要带版本号");
-  for (const asset of ["./wherehome.html", "./items.json", "./manifest.webmanifest"]) {
+  // cache.addAll 只要一个 404 就整体失败，SW 就装不上。
+  // items.json 只在本地开发存在，data.enc 有 6.5MB 不该预下载。
+  assert.ok(!/APP_SHELL[\s\S]*?"\.\/items\.json"[\s\S]*?\]/.test(sw), "APP_SHELL 不能包含 items.json");
+  assert.ok(!/APP_SHELL[\s\S]*?"\.\/data\.enc"[\s\S]*?\]/.test(sw), "APP_SHELL 不能包含 data.enc");
+  for (const asset of ["./wherehome.html", "./manifest.webmanifest", "./offline.html"]) {
     assert.ok(sw.includes('"' + asset + '"'), "APP_SHELL 缺少 " + asset);
   }
 });
