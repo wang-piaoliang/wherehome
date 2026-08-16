@@ -21,7 +21,7 @@ GitHub Pages，可选的云同步是独立的 Cloudflare Worker + D1。
   改数量/备注）、删除、新增（可拍照）、深浅色切换、本地持久化、导出修改、云同步的
   上传/下载。
 - 测试：`npm test`，7 个用例全绿。
-- 部署：代码在 GitHub public 仓库；App 和数据在 Cloudflare Pages，前面用 Cloudflare Access 按邮箱放行。
+- 部署：代码在 GitHub public 仓库；App 和数据在 Cloudflare Worker（`gate/`）后面，用密码 + 签名 cookie 保护。
 
 ## 数据是怎么来的
 
@@ -57,52 +57,63 @@ GitHub Pages，可选的云同步是独立的 Cloudflare Worker + D1。
 
 ## 部署
 
-代码和数据走两条完全分开的路，这是本项目最重要的一个架构约束：
+代码和数据走两条完全分开的路，这是本项目最重要的架构约束：
 
 | | 放哪 | 谁能看 |
 |---|---|---|
 | 代码、脚本、文档 | GitHub **public** 仓库 | 所有人 |
-| `public/items/`、`public/items.json` | 只用 `wrangler pages deploy` 直传 Cloudflare Pages | 只有通过 Cloudflare Access 验证的邮箱 |
+| `public/items/`、`public/items.json` | 只随 `gate/` Worker 上传到 Cloudflare | 只有知道密码的人 |
 
 物品小图是家里各个柜子内部的实拍，items.json 是「家里有什么、放在哪」的完整清单，
-**两者都在 `.gitignore` 里，绝不允许进入 git 历史**。改动 `.gitignore` 前请三思：
+**两者都在 `.gitignore` 里，绝不允许进入 git 历史**。改 `.gitignore` 前请三思：
 一旦提交过，公开仓库的历史里就洗不掉了。
 
-### 首次部署顺序（顺序很重要）
+### 访问控制：gate/ Worker
 
-1. 推代码到 GitHub public 仓库。
-2. `wrangler pages deploy public --project-name wherehome` —— **第一次先不带数据**
-   （确认 `public/items/` 和 `public/items.json` 不在本地，或临时移走），
-   这样即使 Access 还没配好，暴露的也只是一个空壳。
-3. 在 Cloudflare 控制台 Zero Trust → Access → Applications 里给这个 Pages 域名加一个
-   Self-hosted 应用，策略设为 Allow + Emails，填入允许的邮箱。
-4. 用无痕窗口验证：打不开、要求邮箱验证码 = 生效了。
-5. 确认生效之后，再把数据放回 `public/` 并重新 `wrangler pages deploy`。
+`gate/` 是一个把整个站点挡在密码后面的 Worker：
+
+- 静态资源（App、items.json、1054 张小图）用 **Workers Static Assets** 托管，
+  `wrangler.toml` 里 `run_worker_first = true`，保证每个请求都先过 Worker。
+- 没有有效 cookie 时，**任何路径**都只返回登录页（不暴露站点结构）。
+- 密码正确后种一个 HMAC 签名的 cookie，30 天有效，`HttpOnly; Secure; SameSite=Lax`。
+- 密码比对用定长比较；密码错误时延迟 900ms，降低暴力尝试速率。
+- 全站响应带 `X-Robots-Tag: noindex` 和 `Referrer-Policy: no-referrer`。
+
+两个 secret（不在仓库里）：
+
+```bash
+cd gate
+printf 'your-password' | wrangler secret put APP_PASSWORD --name wherehome
+python3 -c "import secrets;print(secrets.token_urlsafe(48))" | tr -d '\n' | wrangler secret put COOKIE_SECRET --name wherehome
+wrangler deploy
+```
+
+**为什么不用 Cloudflare Access**：Access 的 Self-hosted 应用要求从账号下的域名里选主机名，
+而这个账号没有任何域名，`*.pages.dev` 不属于用户，选不了。等哪天有了自己的域名，
+可以换成 Access 的邮箱验证码登录，那样每人一个身份，比共享密码更好。
 
 ### 日常更新
 
 ```bash
 npm test
-git push github main            # 代码
-wrangler pages deploy public --project-name wherehome   # 代码 + 数据
+git push github main       # 只推代码
+cd gate && wrangler deploy # 推代码 + 数据（1067 个文件，走代理时可能要重试）
 ```
 
 `scripts/publish-pages.sh` 是从 NutriFlow 继承来的 GitHub Pages 发布脚本，
-**本项目不用它**（GitHub Pages 是公开的，会把数据暴露出去）。保留仅作参考。
+**本项目不要用它** —— GitHub Pages 站点永远是公开的，会把家里的数据暴露出去。保留仅作参考。
 
-### 云同步（可选，两人共用时才需要）
+### 云同步（可选，两人各自的修改互通时才需要）
 
-`api/` 是一个独立的 Cloudflare Worker + D1，只同步用户的修改补丁
-（`wherehome_edits_v1`，几十 KB），和 16MB 的图无关，也不需要 R2。
+`api/` 是独立的 Cloudflare Worker + D1，只同步修改补丁（`wherehome_edits_v1`，几十 KB），
+与 16MB 的图无关，也不需要 R2。
 
 ```bash
 cd api
 wrangler d1 create wherehome     # 把返回的 database_id 填进 wrangler.toml
-wrangler secret put SYNC_TOKEN   # 自己设一个密钥
+wrangler secret put SYNC_TOKEN
 wrangler deploy
 ```
-
-然后在 App 的「设置」里填 Worker 地址和密钥。两台设备填同一组就能互通。
 
 ## 已知问题 / 待办
 

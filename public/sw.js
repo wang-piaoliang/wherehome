@@ -1,4 +1,4 @@
-const CACHE_NAME = "wherehome-pwa-v1";
+const CACHE_NAME = "wherehome-pwa-v2";
 const APP_SHELL = [
   "./",
   "./wherehome.html",

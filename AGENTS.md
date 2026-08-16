@@ -46,10 +46,14 @@ items.json 里每条：
 
 ## 发布
 
-- 用 `github` remote。`main` 放源码，`gh-pages` 放 `public/` 的内容。
-- 改完之后：更新 `WHEREHOME_PROJECT_CONTEXT.md` → 提交 → 跑 `npm run publish:pages`，同一个任务里做完，不要攒着。
-- `publish:pages` 会：`git diff --check` → `npm test` → 推 main → 把 `public/` 树叠一个提交推到 gh-pages → 调 GitHub API 触发重建。
-- 仓库名通过 `WHEREHOME_REPO` 环境变量覆盖，默认 `wang-piaoliang/wherehome`。
+**代码和数据分两条路，永远不要合并。**
+
+- `git push github main` —— 只推代码。`public/items/` 和 `public/items.json` 在 `.gitignore` 里，
+  它们是家里柜子内部的实拍和完整物品清单，仓库是公开的，**绝不能提交**。
+- `cd gate && wrangler deploy` —— 推代码 + 数据到受密码保护的 Worker。这是数据唯一的出口。
+- **不要用 `scripts/publish-pages.sh`**（继承自 NutriFlow）。GitHub Pages 站点永远公开，
+  用它等于把家里的数据发到全网。该脚本保留仅作参考。
+- 改完之后更新 `WHEREHOME_PROJECT_CONTEXT.md`，和实现一起提交。
 
 ## 产品与质量约束
 

@@ -1,7 +1,8 @@
 # 依赖与构建产物
 /node_modules
 /dist/
-/.wrangler/
+.wrangler/
+# wrangler 会在每个 worker 目录下缓存账号信息，不要提交
 /coverage
 
 # ── 家里的实际数据，绝对不要提交 ──────────────────────────

@@ -1,0 +1,12 @@
+# 「在哪儿」的访问门 Worker。
+# 静态资源指向 ../public（含 items.json 和 1054 张物品小图，这些都在 .gitignore 里，
+# 不进 GitHub，只随这个 Worker 上传到 Cloudflare）。
+name = "wherehome"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "../public"
+binding = "ASSETS"
+# 让 Worker 先跑，所有请求都要过密码门，否则静态文件会被直接发出去。
+run_worker_first = true
