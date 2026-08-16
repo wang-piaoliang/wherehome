@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2C5B6D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="在哪儿">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<title>在哪儿 · 家里的东西</title>
+<style>
+:root{
+  --bg:#F2F1ED; --surface:#FFFFFF; --surface-2:#F8F7F4; --surface-3:#EEEDE8;
+  --ink:#1E2328; --ink-2:#464E55; --muted:#6C737A; --faint:#9AA1A7;
+  --line:#DFDDD7; --line-2:#EBE9E4;
+  --accent:#2C5B6D; --accent-soft:#E3EDF0; --on-accent:#FFFFFF;
+  --warn:#9C6B2E; --warn-soft:#F3EBDB;
+  --danger:#965740; --danger-soft:#F3E5E0;
+  --ok:#4C6F52; --ok-soft:#E4EDE5;
+  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+  --shadow:0 1px 2px rgba(30,35,40,.05),0 6px 18px -12px rgba(30,35,40,.25);
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#141719; --surface:#1C2023; --surface-2:#22262A; --surface-3:#282D31;
+    --ink:#E9E7E2; --ink-2:#CAC8C3; --muted:#959B9F; --faint:#6C7277;
+    --line:#2D3235; --line-2:#262A2D;
+    --accent:#79ADBF; --accent-soft:#1D2E34; --on-accent:#0F1416;
+    --warn:#C9A160; --warn-soft:#28231A;
+    --danger:#C58468; --danger-soft:#2C221E;
+    --ok:#8AAB8C; --ok-soft:#1F2721;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141719; --surface:#1C2023; --surface-2:#22262A; --surface-3:#282D31;
+  --ink:#E9E7E2; --ink-2:#CAC8C3; --muted:#959B9F; --faint:#6C7277;
+  --line:#2D3235; --line-2:#262A2D;
+  --accent:#79ADBF; --accent-soft:#1D2E34; --on-accent:#0F1416;
+  --warn:#C9A160; --warn-soft:#28231A;
+  --danger:#C58468; --danger-soft:#2C221E;
+  --ok:#8AAB8C; --ok-soft:#1F2721;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{overflow-x:hidden}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  padding-bottom:calc(66px + var(--safe-b));
+}
+img{display:block;max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;padding:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:900px;margin:0 auto;padding:0 14px}
+[hidden]{display:none !important}
+
+/* ---------- header ---------- */
+header.top{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:10px;padding:12px 0 10px}
+.brand{font-size:17px;font-weight:650;letter-spacing:.01em;flex:none}
+.hstat{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.04em;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.iconbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+  display:grid;place-items:center;font-size:15px;flex:none}
+.searchbox{position:relative;padding-bottom:10px}
+.searchbox input{width:100%;padding:11px 38px 11px 13px;font-size:16px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface);color:var(--ink)}
+.searchbox input::placeholder{color:var(--faint)}
+.searchbox .clr{position:absolute;right:8px;top:11px;color:var(--faint);padding:4px 6px;font-size:15px}
+.frow{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+.frow::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);padding:5px 11px;border-radius:999px;
+  font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.chip .n{font-family:var(--mono);font-size:10px;opacity:.6;margin-left:5px}
+
+/* ---------- list ---------- */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 8px;flex-wrap:wrap}
+.count{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.count b{color:var(--ink);font-size:14px}
+.viewtoggle{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.viewtoggle button{padding:5px 11px;font-size:12px;color:var(--muted);background:var(--surface)}
+.viewtoggle button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);font-weight:600}
+
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(144px,1fr));padding-bottom:24px}
+.grid .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  box-shadow:var(--shadow);text-align:left;display:flex;flex-direction:column;width:100%}
+.grid .thumb{position:relative;aspect-ratio:1/1;background:var(--surface-2);flex:none;overflow:hidden}
+.grid .thumb img{width:100%;height:100%;object-fit:cover}
+.grid .meta{padding:8px 9px 10px;display:flex;flex-direction:column;gap:2px;flex:1}
+.grid .nm{font-size:13px;font-weight:600;line-height:1.35;word-break:break-word}
+.grid .loc{font-size:11px;color:var(--muted)}
+.grid .loc .room{color:var(--accent);font-weight:600}
+
+.rows{display:flex;flex-direction:column;gap:8px;padding-bottom:24px}
+.rows .card{display:grid;grid-template-columns:56px 1fr auto;gap:11px;align-items:center;background:var(--surface);
+  border:1px solid var(--line);border-radius:11px;padding:8px 11px 8px 8px;box-shadow:var(--shadow);
+  text-align:left;width:100%}
+.rows .thumb{width:56px;height:56px;border-radius:8px;overflow:hidden;background:var(--surface-2);position:relative}
+.rows .thumb img{width:100%;height:100%;object-fit:cover}
+.rows .nm{font-size:14px;font-weight:600;line-height:1.35}
+.rows .loc{font-size:12px;color:var(--muted)}
+.rows .loc .room{color:var(--accent);font-weight:600}
+.rows .chev{color:var(--faint);font-size:16px}
+
+.badge{position:absolute;top:5px;left:5px;font-family:var(--mono);font-size:9px;letter-spacing:.04em;
+  padding:2px 5px;border-radius:5px;background:rgba(0,0,0,.6);color:#fff}
+.badge.low{background:var(--warn)}
+.badge.off{background:var(--danger)}
+.badge.edited{background:var(--ok)}
+
+.empty{padding:60px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+.more{display:block;width:100%;padding:12px;margin-bottom:24px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface);color:var(--accent);font-size:14px;font-weight:600}
+
+/* ---------- tabs ---------- */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--surface);
+  border-top:1px solid var(--line);display:flex;padding-bottom:var(--safe-b)}
+nav.tabs button{flex:1;padding:9px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:10.5px;color:var(--muted)}
+nav.tabs button .ic{font-size:18px;line-height:1}
+nav.tabs button[aria-pressed="true"]{color:var(--accent);font-weight:600}
+
+/* ---------- sheet ---------- */
+.scrim{position:fixed;inset:0;background:rgba(15,20,22,.55);z-index:50;opacity:0;pointer-events:none;
+  transition:opacity .18s}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--bg);
+  border-radius:18px 18px 0 0;max-height:92vh;overflow-y:auto;transform:translateY(100%);
+  transition:transform .22s cubic-bezier(.32,.72,0,1);padding-bottom:calc(20px + var(--safe-b))}
+.sheet.open{transform:translateY(0)}
+@media (prefers-reduced-motion:reduce){.sheet,.scrim{transition:none}}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:9px auto 4px}
+.sheet .inner{padding:6px 16px 0}
+.sheet h2{font-size:18px;margin:8px 0 2px;font-weight:650;line-height:1.3}
+.detimg{width:100%;max-height:44vh;object-fit:contain;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:12px;margin:10px 0 12px}
+.kv{display:grid;grid-template-columns:66px 1fr;gap:7px 12px;font-size:14px;padding:2px 0 14px}
+.kv dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--faint);
+  text-transform:uppercase;padding-top:4px}
+.kv dd{margin:0;color:var(--ink-2)}
+.field{margin-bottom:11px}
+.field label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;font-size:16px;
+  border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink)}
+.field textarea{min-height:64px;resize:vertical}
+.actions{display:flex;gap:8px;padding:6px 0 4px;flex-wrap:wrap}
+.btn{padding:11px 16px;border-radius:10px;font-size:14px;font-weight:600;border:1px solid var(--line);
+  background:var(--surface);flex:1;min-width:110px;text-align:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
+.btn.ghost{color:var(--muted)}
+
+/* ---------- settings ---------- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 16px;
+  margin-bottom:12px;box-shadow:var(--shadow)}
+.panel h3{margin:0 0 4px;font-size:15px;font-weight:650}
+.panel p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.stats div{background:var(--surface);padding:11px 12px}
+.stats dt{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stats dd{margin:3px 0 0;font-size:19px;font-weight:650;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:calc(80px + var(--safe-b));transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:13.5px;
+  z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;max-width:90vw}
+.toast.show{opacity:1}
+.roomlist{display:flex;flex-direction:column;gap:8px}
+.roomrow{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);
+  border:1px solid var(--line);border-radius:11px;padding:12px 14px;width:100%;text-align:left}
+.roomrow .nm{font-size:15px;font-weight:600}
+.roomrow .sub{font-size:12px;color:var(--muted)}
+.roomrow .n{font-family:var(--mono);font-size:15px;color:var(--accent);font-weight:650}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="hrow">
+      <span class="brand">在哪儿</span>
+      <span class="hstat" id="hstat">载入中…</span>
+      <button class="iconbtn" id="themeBtn" aria-label="切换深浅色">◐</button>
+    </div>
+    <div id="searchWrap">
+      <div class="searchbox">
+        <input id="q" type="search" placeholder="搜物品、房间、柜子…" autocomplete="off" enterkeyhint="search">
+        <button class="clr" id="clr" aria-label="清空">✕</button>
+      </div>
+      <div class="frow" id="roomRow"></div>
+      <div class="frow" id="catRow"></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 搜索 -->
+  <section id="view-search">
+    <div class="bar">
+      <div class="count" id="count"></div>
+      <div class="viewtoggle">
+        <button id="vGrid" aria-pressed="true">图</button>
+        <button id="vList" aria-pressed="false">列表</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="rows" id="rows" hidden></div>
+    <button class="more" id="more" hidden>再显示 100 件</button>
+    <div class="empty" id="empty" hidden><b>没找到</b>换个词，或者清掉筛选</div>
+  </section>
+
+  <!-- 按房间 -->
+  <section id="view-rooms" hidden>
+    <div class="bar"><div class="count">按房间浏览</div></div>
+    <div class="roomlist" id="roomList"></div>
+  </section>
+
+  <!-- 设置 -->
+  <section id="view-more" hidden>
+    <div class="bar"><div class="count">数据与设置</div></div>
+    <dl class="stats" id="stats"></dl>
+
+    <div class="panel">
+      <h3>我的修改</h3>
+      <p>改名、改位置、新增、删除都只存在这台设备上，不会动原始数据。</p>
+      <div class="actions">
+        <button class="btn" id="exportBtn">导出修改</button>
+        <button class="btn ghost" id="resetBtn">清空修改</button>
+      </div>
+    </div>
+
+    <div class="panel" id="lockPanel" hidden>
+      <h3>本地数据</h3>
+      <p>物品库已在这台设备上解密并缓存，所以打开不用再输口令。换了设备、或者手机要给别人用，可以清掉。</p>
+      <div class="actions">
+        <button class="btn danger" id="lockBtn">清除并锁定</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>云同步</h3>
+      <p id="syncState">未配置。填上 Worker 地址和密钥后，可以在手机和电脑之间同步你的修改。</p>
+      <div class="field">
+        <label for="syncUrl">Worker 地址</label>
+        <input id="syncUrl" type="url" placeholder="https://xxx.workers.dev" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="syncToken">密钥</label>
+        <input id="syncToken" type="password" placeholder="SYNC_TOKEN" autocomplete="off">
+      </div>
+      <div class="actions">
+        <button class="btn" id="pushBtn">上传</button>
+        <button class="btn" id="pullBtn">下载</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>关于</h3>
+      <p id="aboutText">物品库来自 29 张现状照片的逐格识别，名称由模型给出，可能有错——发现不对直接改。</p>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button data-view="search" aria-pressed="true"><span class="ic">🔍</span>搜索</button>
+  <button data-view="rooms" aria-pressed="false"><span class="ic">🚪</span>房间</button>
+  <button data-view="add" aria-pressed="false"><span class="ic">＋</span>新增</button>
+  <button data-view="more" aria-pressed="false"><span class="ic">⚙︎</span>设置</button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="物品详情">
+  <div class="grab"></div>
+  <div class="inner" id="sheetInner"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+const LS_EDITS = "wherehome_edits_v1";
+const LS_PREFS = "wherehome_prefs_v1";
+const SYNC_KEY = "wherehome-items";
+const PAGE = 100;
+
+const $ = id => document.getElementById(id);
+const state = {
+  base: [], byId: new Map(), edits: {}, prefs: {},
+  q: "", rooms: new Set(), cats: new Set(),
+  view: "search", layout: "grid", limit: PAGE, current: null,
+};
+
+/* ---------- 存储 ---------- */
+function loadJSON(key, fallback){
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch(e){ return fallback; }
+}
+function saveEdits(){ try{ localStorage.setItem(LS_EDITS, JSON.stringify(state.edits)); }catch(e){ toast("存不下了，浏览器存储已满"); } }
+function savePrefs(){ try{ localStorage.setItem(LS_PREFS, JSON.stringify(state.prefs)); }catch(e){} }
+
+/* ---------- 合并：原始数据 + 本地修改 ---------- */
+function merged(){
+  const out = [];
+  for(const it of state.base){
+    const e = state.edits[it.id];
+    if(e && e.deleted) continue;
+    out.push(e ? Object.assign({}, it, e, {edited:true}) : it);
+  }
+  for(const id in state.edits){
+    const e = state.edits[id];
+    if(e && e.added && !e.deleted) out.push(Object.assign({id:id, edited:true, added:true}, e));
+  }
+  return out;
+}
+
+/* ---------- 搜索 ---------- */
+function norm(s){ return (s||"").toString().toLowerCase(); }
+function matches(it){
+  if(!it.on) return false;
+  if(state.rooms.size && !state.rooms.has(it.room)) return false;
+  if(state.cats.size && !state.cats.has(it.cat)) return false;
+  if(state.q){
+    // 注意：不要把 scene（照片级的场景描述）放进来——那会让同一张照片里
+    // 的每件东西都命中同一个词，搜「空气炸锅」会返回整个厨房。
+    const hay = norm(it.name)+" "+norm(it.cat)+" "+norm(it.room)+" "+norm(it.where)+" "+norm(it.qty)+" "+norm(it.note);
+    for(const w of state.q.toLowerCase().split(/\s+/).filter(Boolean)){
+      if(hay.indexOf(w) === -1) return false;
+    }
+  }
+  return true;
+}
+function results(){
+  const list = merged().filter(matches);
+  if(state.q){
+    const q = state.q.toLowerCase();
+    list.sort((a,b) => {
+      const ai = norm(a.name).indexOf(q), bi = norm(b.name).indexOf(q);
+      const av = ai === -1 ? 999 : ai, bv = bi === -1 ? 999 : bi;
+      if(av !== bv) return av - bv;
+      return norm(a.name).length - norm(b.name).length;
+    });
+  }
+  return list;
+}
+
+/* ---------- 渲染 ---------- */
+function thumbHTML(it){
+  const badges = [];
+  if(it.added) badges.push('<span class="badge edited">新增</span>');
+  else if(it.edited) badges.push('<span class="badge edited">已改</span>');
+  else if(it.conf === "low") badges.push('<span class="badge low">存疑</span>');
+  const src = it.img ? it.img : "";
+  const img = src ? '<img loading="lazy" alt="" src="'+src+'">' : '';
+  return img + badges.join("");
+}
+function escapeHTML(s){
+  return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function render(){
+  const list = results();
+  const shown = list.slice(0, state.limit);
+  const grid = $("grid"), rows = $("rows");
+  const useGrid = state.layout === "grid";
+  grid.hidden = !useGrid; rows.hidden = useGrid;
+  const host = useGrid ? grid : rows;
+  const other = useGrid ? rows : grid;
+  other.textContent = "";
+  host.textContent = "";
+
+  const frag = document.createDocumentFragment();
+  for(const it of shown){
+    const b = document.createElement("button");
+    b.className = "card";
+    b.type = "button";
+    if(useGrid){
+      b.innerHTML =
+        '<div class="thumb">'+thumbHTML(it)+'</div>'+
+        '<div class="meta"><div class="nm">'+escapeHTML(it.name)+'</div>'+
+        '<div class="loc"><span class="room">'+escapeHTML(it.room||"未定")+'</span> · '+escapeHTML(it.where||"—")+'</div></div>';
+    } else {
+      b.innerHTML =
+        '<div class="thumb">'+thumbHTML(it)+'</div>'+
+        '<div><div class="nm">'+escapeHTML(it.name)+'</div>'+
+        '<div class="loc"><span class="room">'+escapeHTML(it.room||"未定")+'</span> · '+escapeHTML(it.where||"—")+'</div></div>'+
+        '<span class="chev">›</span>';
+    }
+    b.addEventListener("click", () => openDetail(it.id));
+    frag.appendChild(b);
+  }
+  host.appendChild(frag);
+
+  $("empty").hidden = list.length > 0;
+  $("more").hidden = list.length <= state.limit;
+  $("count").innerHTML = "<b>"+list.length+"</b> 件" + (list.length > shown.length ? "（显示前 "+shown.length+"）" : "");
+}
+
+function buildChips(){
+  const list = merged().filter(i => i.on);
+  const roomCount = new Map(), catCount = new Map();
+  for(const it of list){
+    if(it.room) roomCount.set(it.room, (roomCount.get(it.room)||0)+1);
+    if(it.cat) catCount.set(it.cat, (catCount.get(it.cat)||0)+1);
+  }
+  const ROOM_ORDER = ["玄关","厨房","北阳台","洗漱区","卫生间","客餐厅","主卧","次卧","南阳台"];
+  const rooms = [...roomCount.keys()].sort((a,b) => {
+    const ai = ROOM_ORDER.indexOf(a), bi = ROOM_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  const cats = [...catCount.keys()].sort((a,b) => catCount.get(b) - catCount.get(a));
+  fillRow($("roomRow"), rooms, roomCount, state.rooms);
+  fillRow($("catRow"), cats, catCount, state.cats);
+}
+function fillRow(row, values, counts, set){
+  row.textContent = "";
+  for(const v of values){
+    const b = document.createElement("button");
+    b.className = "chip"; b.type = "button";
+    b.setAttribute("aria-pressed", set.has(v) ? "true" : "false");
+    b.innerHTML = escapeHTML(v)+'<span class="n">'+(counts.get(v)||0)+'</span>';
+    b.addEventListener("click", () => {
+      if(set.has(v)){ set.delete(v); b.setAttribute("aria-pressed","false"); }
+      else { set.add(v); b.setAttribute("aria-pressed","true"); }
+      state.limit = PAGE; render();
+    });
+    row.appendChild(b);
+  }
+}
+
+/* ---------- 房间视图 ---------- */
+function renderRooms(){
+  const list = merged().filter(i => i.on);
+  const byRoom = new Map();
+  for(const it of list){
+    const r = it.room || "未定";
+    if(!byRoom.has(r)) byRoom.set(r, []);
+    byRoom.get(r).push(it);
+  }
+  const ROOM_ORDER = ["玄关","厨房","北阳台","洗漱区","卫生间","客餐厅","主卧","次卧","南阳台"];
+  const rooms = [...byRoom.keys()].sort((a,b) => {
+    const ai = ROOM_ORDER.indexOf(a), bi = ROOM_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  const host = $("roomList");
+  host.textContent = "";
+  for(const r of rooms){
+    const items = byRoom.get(r);
+    const wheres = [...new Set(items.map(i => i.where).filter(Boolean))];
+    const b = document.createElement("button");
+    b.className = "roomrow"; b.type = "button";
+    b.innerHTML = '<div><div class="nm">'+escapeHTML(r)+'</div>'+
+      '<div class="sub">'+escapeHTML(wheres.slice(0,3).join(" · ") || "—")+
+      (wheres.length > 3 ? " 等 "+wheres.length+" 处" : "")+'</div></div>'+
+      '<span class="n">'+items.length+'</span>';
+    b.addEventListener("click", () => {
+      state.rooms.clear(); state.rooms.add(r);
+      state.q = ""; $("q").value = "";
+      state.limit = PAGE;
+      switchView("search");
+      buildChips(); render();
+      window.scrollTo(0,0);
+    });
+    host.appendChild(b);
+  }
+}
+
+/* ---------- 详情 / 编辑 ---------- */
+function openSheet(){ $("scrim").classList.add("open"); $("sheet").classList.add("open"); }
+function closeSheet(){ $("scrim").classList.remove("open"); $("sheet").classList.remove("open"); state.current = null; }
+
+function openDetail(id){
+  const it = merged().find(x => x.id === id);
+  if(!it) return;
+  state.current = id;
+  const img = it.img ? '<img class="detimg" src="'+it.img+'" alt="'+escapeHTML(it.name)+'">' : "";
+  $("sheetInner").innerHTML =
+    img +
+    '<h2>'+escapeHTML(it.name)+'</h2>'+
+    '<dl class="kv">'+
+      '<dt>位置</dt><dd>'+escapeHTML(it.room||"未定")+' › '+escapeHTML(it.where||"—")+'</dd>'+
+      '<dt>分类</dt><dd>'+escapeHTML(it.cat||"—")+'</dd>'+
+      '<dt>数量</dt><dd>'+escapeHTML(it.qty||"—")+'</dd>'+
+      (it.scene ? '<dt>场景</dt><dd>'+escapeHTML(it.scene)+'</dd>' : "")+
+      (it.note ? '<dt>备注</dt><dd>'+escapeHTML(it.note)+'</dd>' : "")+
+    '</dl>'+
+    '<div class="actions">'+
+      '<button class="btn primary" id="editBtn">编辑</button>'+
+      '<button class="btn danger" id="delBtn">删除</button>'+
+      '<button class="btn ghost" id="closeBtn">关闭</button>'+
+    '</div>';
+  $("editBtn").addEventListener("click", () => openEdit(id));
+  $("delBtn").addEventListener("click", () => {
+    if(!confirm("确定删掉「"+it.name+"」？可以在设置里清空修改来恢复。")) return;
+    state.edits[id] = Object.assign({}, state.edits[id], {deleted:true});
+    saveEdits(); closeSheet(); buildChips(); render(); toast("已删除");
+  });
+  $("closeBtn").addEventListener("click", closeSheet);
+  openSheet();
+}
+
+const CATS = ["衣物鞋包","床品家纺","洗漱护肤","美发小电","药品医疗","厨房食材","厨房器具",
+  "家电小电","清洁洗晾","数码办公","文件书籍","手作爱好","摆件纪念","收纳容器","耗材囤货","包装废弃","家具大件"];
+const ROOMS = ["玄关","厨房","北阳台","洗漱区","卫生间","客餐厅","主卧","次卧","南阳台"];
+
+function selectHTML(id, values, current){
+  return '<select id="'+id+'">' + values.map(v =>
+    '<option value="'+escapeHTML(v)+'"'+(v===current?" selected":"")+'>'+escapeHTML(v)+'</option>'
+  ).join("") + '</select>';
+}
+
+function openEdit(id){
+  const it = merged().find(x => x.id === id);
+  if(!it) return;
+  state.current = id;
+  const wheres = [...new Set(merged().map(i => i.where).filter(Boolean))].sort();
+  $("sheetInner").innerHTML =
+    '<h2>编辑</h2>'+
+    (it.img ? '<img class="detimg" src="'+it.img+'" alt="">' : "")+
+    '<div class="field"><label for="fName">名称</label><input id="fName" value="'+escapeHTML(it.name)+'"></div>'+
+    '<div class="field"><label for="fRoom">房间</label>'+selectHTML("fRoom", ROOMS, it.room)+'</div>'+
+    '<div class="field"><label for="fWhere">具体位置</label><input id="fWhere" list="wheres" value="'+escapeHTML(it.where||"")+'">'+
+      '<datalist id="wheres">'+wheres.map(w => '<option value="'+escapeHTML(w)+'">').join("")+'</datalist></div>'+
+    '<div class="field"><label for="fCat">分类</label>'+selectHTML("fCat", CATS, it.cat)+'</div>'+
+    '<div class="field"><label for="fQty">数量</label><input id="fQty" value="'+escapeHTML(it.qty||"")+'"></div>'+
+    '<div class="field"><label for="fNote">备注</label><textarea id="fNote">'+escapeHTML(it.note||"")+'</textarea></div>'+
+    '<div class="actions">'+
+      '<button class="btn primary" id="saveBtn">保存</button>'+
+      '<button class="btn ghost" id="cancelBtn">取消</button>'+
+    '</div>';
+  $("saveBtn").addEventListener("click", () => {
+    const patch = {
+      name: $("fName").value.trim() || it.name,
+      room: $("fRoom").value,
+      where: $("fWhere").value.trim(),
+      cat: $("fCat").value,
+      qty: $("fQty").value.trim(),
+      note: $("fNote").value.trim(),
+      on: true,
+    };
+    state.edits[id] = Object.assign({}, state.edits[id], patch);
+    saveEdits(); buildChips(); render(); openDetail(id); toast("已保存");
+  });
+  $("cancelBtn").addEventListener("click", () => openDetail(id));
+  openSheet();
+}
+
+function openAdd(){
+  const wheres = [...new Set(merged().map(i => i.where).filter(Boolean))].sort();
+  state.current = null;
+  $("sheetInner").innerHTML =
+    '<h2>新增物品</h2>'+
+    '<div class="field"><label for="aPhoto">照片（可选）</label><input id="aPhoto" type="file" accept="image/*"></div>'+
+    '<img class="detimg" id="aPreview" hidden alt="">'+
+    '<div class="field"><label for="aName">名称</label><input id="aName" placeholder="比如：备用插排"></div>'+
+    '<div class="field"><label for="aRoom">房间</label>'+selectHTML("aRoom", ROOMS, "客餐厅")+'</div>'+
+    '<div class="field"><label for="aWhere">具体位置</label><input id="aWhere" list="wheres2" placeholder="比如：边柜滑门格">'+
+      '<datalist id="wheres2">'+wheres.map(w => '<option value="'+escapeHTML(w)+'">').join("")+'</datalist></div>'+
+    '<div class="field"><label for="aCat">分类</label>'+selectHTML("aCat", CATS, "收纳容器")+'</div>'+
+    '<div class="field"><label for="aQty">数量</label><input id="aQty" placeholder="1"></div>'+
+    '<div class="actions">'+
+      '<button class="btn primary" id="addSave">添加</button>'+
+      '<button class="btn ghost" id="addCancel">取消</button>'+
+    '</div>';
+  let dataUrl = "";
+  $("aPhoto").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    shrink(f, 420).then(url => { dataUrl = url; const p = $("aPreview"); p.src = url; p.hidden = false; })
+      .catch(() => toast("照片读不了"));
+  });
+  $("addSave").addEventListener("click", () => {
+    const name = $("aName").value.trim();
+    if(!name){ toast("先给它起个名字"); return; }
+    const id = "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    state.edits[id] = {
+      added:true, name:name, room:$("aRoom").value, where:$("aWhere").value.trim(),
+      cat:$("aCat").value, qty:$("aQty").value.trim() || "1", conf:"high", on:true,
+      img: dataUrl || "", scene:"", note:"",
+    };
+    saveEdits(); closeSheet(); buildChips(); state.limit = PAGE; render(); toast("已添加");
+  });
+  $("addCancel").addEventListener("click", closeSheet);
+  openSheet();
+}
+
+function shrink(file, max){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = reject;
+    fr.onload = () => {
+      const im = new Image();
+      im.onerror = reject;
+      im.onload = () => {
+        const s = Math.min(1, max / Math.max(im.width, im.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.72));
+      };
+      im.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ---------- 视图切换 ---------- */
+function switchView(v){
+  state.view = v;
+  $("view-search").hidden = v !== "search";
+  $("view-rooms").hidden = v !== "rooms";
+  $("view-more").hidden = v !== "more";
+  $("searchWrap").hidden = v !== "search";
+  for(const b of document.querySelectorAll("nav.tabs button")){
+    b.setAttribute("aria-pressed", String(b.dataset.view === v));
+  }
+  if(v === "rooms") renderRooms();
+  if(v === "more") renderStats();
+}
+
+function renderStats(){
+  const all = merged();
+  const on = all.filter(i => i.on);
+  const edited = Object.keys(state.edits).length;
+  const added = Object.values(state.edits).filter(e => e.added).length;
+  $("stats").innerHTML =
+    '<div><dt>可搜索</dt><dd>'+on.length+'</dd></div>'+
+    '<div><dt>房间</dt><dd>'+new Set(on.map(i=>i.room)).size+'</dd></div>'+
+    '<div><dt>我改过</dt><dd>'+edited+'</dd></div>'+
+    '<div><dt>我加的</dt><dd>'+added+'</dd></div>';
+}
+
+/* ---------- 云同步 ---------- */
+function syncCfg(){
+  return { url: (state.prefs.syncUrl||"").replace(/\/+$/,""), token: state.prefs.syncToken||"" };
+}
+async function push(){
+  const {url, token} = syncCfg();
+  if(!url || !token){ toast("先填地址和密钥"); return; }
+  try{
+    const r = await fetch(url+"/doc/"+SYNC_KEY, {
+      method:"PUT",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body: JSON.stringify({value: state.edits}),
+    });
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    toast("已上传 "+Object.keys(state.edits).length+" 条修改");
+  }catch(e){ toast("上传失败：" + e.message); }
+}
+async function pull(){
+  const {url, token} = syncCfg();
+  if(!url || !token){ toast("先填地址和密钥"); return; }
+  try{
+    const r = await fetch(url+"/doc/"+SYNC_KEY, {headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json();
+    if(j && j.value && typeof j.value === "object"){
+      state.edits = j.value; saveEdits(); buildChips(); render();
+      toast("已下载 "+Object.keys(state.edits).length+" 条修改");
+    } else toast("云端还没有数据");
+  }catch(e){ toast("下载失败：" + e.message); }
+}
+
+/* ---------- 杂项 ---------- */
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+function applyTheme(){
+  const t = state.prefs.theme;
+  if(t) document.documentElement.setAttribute("data-theme", t);
+  else document.documentElement.removeAttribute("data-theme");
+}
+
+/* ---------- 加密数据包 ----------
+   data.enc 放在公开仓库里，本身是密文。第一次打开要输口令，用 PBKDF2 派生
+   密钥、AES-GCM 解密，之后把解出来的明文存进 IndexedDB，下次直接用，不用再输。
+   图片不是 base64，是按偏移从明文里切出来的 Blob——交给浏览器管理，
+   不占 JS 内存。 */
+const IDB_NAME = "wherehome", IDB_STORE = "vault", IDB_KEY = "plain";
+
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbGet(key){
+  try{
+    const db = await idb();
+    return await new Promise((res, rej) => {
+      const t = db.transaction(IDB_STORE, "readonly").objectStore(IDB_STORE).get(key);
+      t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error);
+    });
+  }catch(e){ return undefined; }
+}
+async function idbSet(key, val){
+  try{
+    const db = await idb();
+    await new Promise((res, rej) => {
+      const t = db.transaction(IDB_STORE, "readwrite").objectStore(IDB_STORE).put(val, key);
+      t.onsuccess = () => res(); t.onerror = () => rej(t.error);
+    });
+  }catch(e){ /* 存不下就下次重新解密，不影响使用 */ }
+}
+async function idbDel(key){
+  try{
+    const db = await idb();
+    await new Promise(res => {
+      const t = db.transaction(IDB_STORE, "readwrite").objectStore(IDB_STORE).delete(key);
+      t.onsuccess = () => res(); t.onerror = () => res();
+    });
+  }catch(e){}
+}
+
+async function hasEncrypted(){
+  if(state.encChecked !== undefined) return state.encChecked;
+  try{
+    const r = await fetch("./data.enc", {method:"HEAD"});
+    state.encChecked = r.ok;
+  }catch(e){ state.encChecked = false; }
+  return state.encChecked;
+}
+
+// 把解密后的明文切成 {items, blobUrls}
+function unpackPlain(buf){
+  const view = new DataView(buf);
+  const metaLen = view.getUint32(0, false);
+  const metaJSON = new TextDecoder().decode(new Uint8Array(buf, 4, metaLen));
+  const meta = JSON.parse(metaJSON);
+  const base = 4 + metaLen;
+  for(const it of meta.items){
+    if(it.len > 0){
+      const blob = new Blob([new Uint8Array(buf, base + it.off, it.len)], {type:"image/jpeg"});
+      it.img = URL.createObjectURL(blob);
+    } else {
+      it.img = "";
+    }
+  }
+  return meta;
+}
+
+async function decryptBundle(buf, password, onProgress){
+  const u8 = new Uint8Array(buf);
+  const magic = new TextDecoder().decode(u8.slice(0, 4));
+  if(magic !== "WHE2") throw new Error("数据包格式不对");
+  const iterations = new DataView(buf).getUint32(4, false);
+  const salt = u8.slice(8, 24);
+  const iv = u8.slice(24, 36);
+  const body = u8.slice(36);
+
+  onProgress && onProgress("正在校验口令…");
+  const baseKey = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]
+  );
+  const key = await crypto.subtle.deriveKey(
+    {name:"PBKDF2", salt, iterations, hash:"SHA-256"},
+    baseKey, {name:"AES-GCM", length:256}, false, ["decrypt"]
+  );
+  onProgress && onProgress("正在解密…");
+  return await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, body);
+}
+
+function unlockScreen(){
+  document.body.innerHTML =
+    '<div class="unlock"><form class="ucard" id="uform">' +
+      '<h1>在哪儿</h1><p class="usub">家里的东西放在哪儿</p>' +
+      '<p class="uerr" id="uerr" hidden></p>' +
+      '<input id="upw" type="password" placeholder="口令" autocomplete="current-password" autofocus required>' +
+      '<button type="submit" id="ubtn">解锁</button>' +
+      '<p class="unote">数据在这台设备上解密，解开后会记住，下次不用再输。</p>' +
+    '</form></div>';
+  const st = document.createElement("style");
+  st.textContent =
+    '.unlock{min-height:100vh;display:grid;place-items:center;padding:24px}' +
+    '.ucard{width:100%;max-width:330px;background:var(--surface);border:1px solid var(--line);' +
+      'border-radius:16px;padding:28px 24px;box-shadow:var(--shadow)}' +
+    '.ucard h1{font-size:21px;margin:0 0 4px;font-weight:650}' +
+    '.usub{margin:0 0 20px;font-size:13.5px;color:var(--muted)}' +
+    '.uerr{margin:0 0 14px;font-size:13px;color:var(--danger);background:var(--danger-soft);' +
+      'padding:8px 11px;border-radius:8px}' +
+    '.ucard input{width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--line);' +
+      'border-radius:10px;background:var(--bg);color:var(--ink);margin-bottom:12px}' +
+    '.ucard button{width:100%;padding:12px;font-size:15px;font-weight:600;border:0;border-radius:10px;' +
+      'background:var(--accent);color:var(--on-accent)}' +
+    '.ucard button[disabled]{opacity:.6}' +
+    '.unote{margin:14px 0 0;font-size:11.5px;color:var(--faint);line-height:1.5}';
+  document.head.appendChild(st);
+  return new Promise(resolve => {
+    const form = document.getElementById("uform");
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const btn = document.getElementById("ubtn");
+      const err = document.getElementById("uerr");
+      const pw = document.getElementById("upw").value;
+      if(!pw) return;
+      btn.disabled = true; err.hidden = true;
+      const say = m => { btn.textContent = m; };
+      try{
+        say("正在下载…");
+        const r = await fetch("./data.enc");
+        if(!r.ok) throw new Error("下载失败 HTTP " + r.status);
+        const buf = await r.arrayBuffer();
+        const plain = await decryptBundle(buf, pw, say);
+        await idbSet(IDB_KEY, plain);
+        resolve(plain);
+      }catch(ex){
+        // AES-GCM 校验失败基本就等于口令不对
+        err.textContent = /operation-specific|OperationError|decrypt/i.test(String(ex && ex.name) + String(ex && ex.message))
+          ? "口令不对" : ("出错了：" + (ex && ex.message ? ex.message : ex));
+        err.hidden = false;
+        btn.disabled = false; btn.textContent = "解锁";
+        document.getElementById("upw").select();
+      }
+    });
+  });
+}
+
+async function loadEncrypted(){
+  let plain = await idbGet(IDB_KEY);
+  if(!plain){
+    plain = await unlockScreen();
+    location.reload();   // 解锁后重载，走正常启动路径
+    return null;
+  }
+  return unpackPlain(plain);
+}
+
+/* ---------- 启动 ---------- */
+async function boot(){
+  state.edits = loadJSON(LS_EDITS, {});
+  state.prefs = loadJSON(LS_PREFS, {});
+  applyTheme();
+  if(state.prefs.layout) state.layout = state.prefs.layout;
+  $("vGrid").setAttribute("aria-pressed", String(state.layout==="grid"));
+  $("vList").setAttribute("aria-pressed", String(state.layout==="list"));
+  $("syncUrl").value = state.prefs.syncUrl || "";
+  $("syncToken").value = state.prefs.syncToken || "";
+
+  // 数据来源有三种，按优先级：
+  //   1. window.__ITEMS__  —— 单文件版（scripts/build-standalone.py 产出）内嵌
+  //   2. data.enc          —— 加密包（scripts/build-encrypted.mjs 产出），需要口令
+  //   3. items.json        —— 明文，本地开发用
+  try{
+    let j;
+    if(window.__ITEMS__){
+      j = window.__ITEMS__;
+    } else if(await hasEncrypted()){
+      j = await loadEncrypted();
+      if(!j) return;               // 用户还没解锁，解锁界面已经接管
+    } else {
+      const r = await fetch("./items.json", {cache:"no-cache"});
+      j = await r.json();
+    }
+    state.base = j.items || [];
+    for(const it of state.base) state.byId.set(it.id, it);
+  }catch(e){
+    $("hstat").textContent = "数据没载入成功";
+    toast("物品数据载入失败：" + (e && e.message ? e.message : e));
+    return;
+  }
+
+  if(await hasEncrypted()) $("lockPanel").hidden = false;
+
+  const on = state.base.filter(i => i.on).length;
+  $("hstat").textContent = on + " 件 · " + new Set(state.base.filter(i=>i.on).map(i=>i.room)).size + " 个房间";
+  buildChips();
+  render();
+}
+
+/* 事件 */
+$("q").addEventListener("input", e => { state.q = e.target.value.trim(); state.limit = PAGE; render(); });
+$("clr").addEventListener("click", () => { $("q").value=""; state.q=""; state.limit=PAGE; render(); $("q").focus(); });
+$("more").addEventListener("click", () => { state.limit += PAGE; render(); });
+$("vGrid").addEventListener("click", () => {
+  state.layout = "grid"; state.prefs.layout = "grid"; savePrefs();
+  $("vGrid").setAttribute("aria-pressed","true"); $("vList").setAttribute("aria-pressed","false"); render();
+});
+$("vList").addEventListener("click", () => {
+  state.layout = "list"; state.prefs.layout = "list"; savePrefs();
+  $("vList").setAttribute("aria-pressed","true"); $("vGrid").setAttribute("aria-pressed","false"); render();
+});
+for(const b of document.querySelectorAll("nav.tabs button")){
+  b.addEventListener("click", () => {
+    if(b.dataset.view === "add"){ openAdd(); return; }
+    switchView(b.dataset.view);
+    window.scrollTo(0,0);
+  });
+}
+$("scrim").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeSheet(); });
+$("themeBtn").addEventListener("click", () => {
+  const cur = state.prefs.theme;
+  state.prefs.theme = cur === "dark" ? "light" : cur === "light" ? "" : "dark";
+  savePrefs(); applyTheme();
+});
+$("syncUrl").addEventListener("change", e => { state.prefs.syncUrl = e.target.value.trim(); savePrefs(); });
+$("syncToken").addEventListener("change", e => { state.prefs.syncToken = e.target.value.trim(); savePrefs(); });
+$("pushBtn").addEventListener("click", push);
+$("pullBtn").addEventListener("click", pull);
+$("exportBtn").addEventListener("click", () => {
+  const text = JSON.stringify(state.edits, null, 1);
+  navigator.clipboard && navigator.clipboard.writeText(text)
+    .then(() => toast("已复制到剪贴板（"+Object.keys(state.edits).length+" 条）"))
+    .catch(() => toast("复制失败，请手动导出"));
+});
+$("resetBtn").addEventListener("click", () => {
+  if(!confirm("清空这台设备上的全部修改？原始物品库不受影响。")) return;
+  state.edits = {}; saveEdits(); buildChips(); render(); renderStats(); toast("已清空");
+});
+$("lockBtn").addEventListener("click", async () => {
+  if(!confirm("清除这台设备上缓存的物品库？下次打开要重新输口令。你的修改不受影响。")) return;
+  await idbDel(IDB_KEY);
+  location.reload();
+});
+
+// 单文件版没有同目录的 sw.js，注册会 404，跳过即可。
+if("serviceWorker" in navigator && !window.__ITEMS__){
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+
+boot();
+</script>
+</body>
+</html>
