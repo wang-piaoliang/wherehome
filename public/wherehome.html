@@ -814,7 +814,24 @@ function unlockScreen(){
         say("正在下载…");
         const r = await fetch("./data.enc");
         if(!r.ok) throw new Error("下载失败 HTTP " + r.status);
-        const buf = await r.arrayBuffer();
+        // 6.5MB 在手机流量下要一会儿，读流并显示进度，否则看着像卡住
+        const total = Number(r.headers.get("Content-Length") || 0);
+        let buf;
+        if(r.body && total > 0){
+          const reader = r.body.getReader();
+          const parts = []; let got = 0;
+          for(;;){
+            const {done, value} = await reader.read();
+            if(done) break;
+            parts.push(value); got += value.length;
+            say("正在下载… " + Math.round(got / total * 100) + "%");
+          }
+          const all = new Uint8Array(got); let at = 0;
+          for(const p of parts){ all.set(p, at); at += p.length; }
+          buf = all.buffer;
+        } else {
+          buf = await r.arrayBuffer();
+        }
         const plain = await decryptBundle(buf, pw, say);
         await idbSet(IDB_KEY, plain);
         resolve(plain);
